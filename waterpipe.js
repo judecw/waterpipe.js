@@ -99,6 +99,27 @@
             this.niceGradient.addColorStop(1,r1,g1,b1);     
             this.niceGradient.fillRect(this.context,0,0,this.displayWidth,this.displayHeight);
         },
+        resize: function(width, height) {
+            var targetWidth = parseInt(width, 10);
+            var targetHeight = parseInt(height, 10);
+            if (!isFinite(targetWidth) || targetWidth <= 0) { return; }
+            if (!isFinite(targetHeight) || targetHeight <= 0) { return; }
+
+            // Set wrapper size so clientWidth/clientHeight reflect requested pixels
+            this.$element.css({ width: targetWidth + 'px', height: targetHeight + 'px' });
+
+            // Update internal canvas dimensions to match wrapper
+            this.displayWidth = this.$element[0].clientWidth;
+            this.displayHeight = this.$element[0].clientHeight;
+            this.displayCanvas[0].width = this.displayWidth;
+            this.displayCanvas[0].height = this.displayHeight;
+            this.context.setTransform(1,0,0,1,0,0);
+            this.context.clearRect(0,0,this.displayWidth,this.displayHeight);
+
+            // Keep export canvas in sync with on-screen canvas size
+            this.exportCanvas.width = this.displayWidth;
+            this.exportCanvas.height = this.displayHeight;
+        },
         setCircles: function () {
             var i;
             var r,g,b,a;
@@ -286,21 +307,37 @@
             return result;
         },
         download: function(width, height){
-            this.exportContext.drawImage(this.displayCanvas[0], 0, 0, width, height, 0, 0, width, height);
-            //we will open a new window with the image contained within:        
-            //retrieve canvas image as data URL:
+            // normalize desired export dimensions
+            var targetWidth = parseInt(width, 10);
+            var targetHeight = parseInt(height, 10);
+            if (!isFinite(targetWidth) || targetWidth <= 0) { targetWidth = this.displayWidth; }
+            if (!isFinite(targetHeight) || targetHeight <= 0) { targetHeight = this.displayHeight; }
+
+            // resize offscreen canvas to requested size
+            this.exportCanvas.width = targetWidth;
+            this.exportCanvas.height = targetHeight;
+
+            // clear and draw scaled image from display canvas
+            this.exportContext.setTransform(1,0,0,1,0,0);
+            this.exportContext.clearRect(0,0,targetWidth,targetHeight);
+            this.exportContext.drawImage(
+                this.displayCanvas[0],
+                0, 0, this.displayWidth, this.displayHeight,
+                0, 0, targetWidth, targetHeight
+            );
+
+            // retrieve canvas image as data URL:
             var dataURL = this.exportCanvas.toDataURL("image/png");
-            //open a new window of appropriate size to hold the image:
-            var imageWindow = window.open("", "fractalLineImage", "left=0,top=0,width="+width+",height="+height+",toolbar=0,resizable=0");
-            //write some html into the new window, creating an empty image:
+
+            // open a new window sized to the requested dimensions and write the image
+            var imageWindow = window.open("", "fractalLineImage", "left=0,top=0,width="+targetWidth+",height="+targetHeight+",toolbar=0,resizable=0");
             imageWindow.document.write("<title>Export Image</title>")
             imageWindow.document.write("<img id='exportImage'"
                                         + " alt=''"
-                                        + " height='" + height + "'"
-                                        + " width='"  + width  + "'"
+                                        + " height='" + targetHeight + "'"
+                                        + " width='"  + targetWidth  + "'"
                                         + " style='position:absolute;left:0;top:0'/>");
             imageWindow.document.close();
-            //copy the image into the empty img in the newly opened window:
             var exportImage = imageWindow.document.getElementById("exportImage");
             exportImage.src = dataURL;
         }
