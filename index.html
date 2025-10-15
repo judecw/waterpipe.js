@@ -19,11 +19,10 @@
 </div>
 
 <div class="sidebar-wrapper">
-	<div class="panel-header drag-handle">waterpipe.js controls</div>
 	<div style="clear:both"></div>
 	<div class="generator-form-wrap">
 		<form class="generator-params">
-			<h2>Smoke style</h2>
+            <h2 class="drag-handle" title="Drag to move">Smoke style</h2>
 			<div class="input-group">
 				<label for="gradientStart">Gradient start:</label>
 				<input type="text" id="gradientStart" name="gradientStart" value="#000000" class="color-picker gradient-start"></input>
@@ -38,21 +37,21 @@
 				<input type="hidden" id="smokeOpacity" name="smokeOpacity" value="10" class="slider"></input>
 			</div>
 			<div class="input-group">
-				<label for="radiusSize">Smoke size: <span class="value">100%</span></label>
+			<label for="radiusSize">Smoke size: <span class="value">67%</span></label>
 				<div class="radiusSize-slider"></div>
-				<input type="hidden" id="radiusSize" name="radiusSize" value="100" class=""></input>
+			<input type="hidden" id="radiusSize" name="radiusSize" value="67" class=""></input>
 			</div>
 			<div class="input-group">
-				<label for="lineWidth">Line width: <span class="value">2px</span></label>
+			<label for="lineWidth">Line width: <span class="value">1.6px</span></label>
 				<div class="lineWidth-slider"></div>
-				<input type="hidden" id="lineWidth" name="lineWidth" value="2" class=""></input>
+			<input type="hidden" id="lineWidth" name="lineWidth" value="1.6" class=""></input>
 			</div>
 			<div class="input-group">
 				<label for="numCircles">Smokes #: <span class="value">1</span></label>
 				<div class="numCircles-slider"></div>
 				<input type="hidden" id="numCircles" name="numCircles" value="1" class=""></input>
 			</div>
-			<h2>Background style</h2>
+            <h2>Background style</h2>
 			<div class="input-group">
 				<label for="bgColorOuter">Outer color:</label>
 				<input type="text" id="bgColorOuter" name="bgColorOuter" class="color-picker color-outer" value="#666666"></input>
@@ -61,14 +60,13 @@
 				<label for="bgColorInner">Inner color:</label>
 				<input type="text" id="bgColorInner" name="bgColorInner" class="color-picker color-inner" value="#ffffff"></input>
 			</div>
-			<h2>Canvas size</h2>
 			<div class="input-group">
-				<label for="downloadWidth">Width (px):</label>
-				<input type="text" id="downloadWidth" name="downloadWidth"></input>
+			<label for="downloadWidth">Width (px):</label>
+			<input type="text" id="downloadWidth" name="downloadWidth" value="3240"></input>
 			</div>
 			<div class="input-group">
-				<label for="downloadHeight">Height (px):</label>
-				<input type="text" id="downloadHeight" name="downloadHeight"></input>
+			<label for="downloadHeight">Height (px):</label>
+			<input type="text" id="downloadHeight" name="downloadHeight" value="1440"></input>
 			</div>
 		</form>
 	</div>
