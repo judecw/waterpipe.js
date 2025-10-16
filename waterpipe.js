@@ -25,6 +25,10 @@
             drawsPerFrame: 10,
             lineWidth: 2,
             speed: 1,
+            // Animation controls
+            timeScale: 1,
+            // Determinism
+            seed: null,
             //Background
             bgColorInner: "#ffffff",
             bgColorOuter: "#666666",
@@ -33,6 +37,20 @@
     var TWO_PI = 2*Math.PI;
     var timer;
     var inst;
+    function mulberry32(a){
+        return function(){
+            var t = a += 0x6D2B79F5;
+            t = Math.imul(t ^ t >>> 15, t | 1);
+            t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+            return ((t ^ t >>> 14) >>> 0) / 4294967296;
+        }
+    }
+    function toSeed(v){
+        var n = Math.floor(Number(v));
+        if (!isFinite(n)) n = 0;
+        if (n < 0) n = 0xFFFFFFFF + n + 1;
+        return n >>> 0;
+    }
     function Smoke ( element, options ) {
         this.element = element;
         this.$element = $(element);
@@ -40,6 +58,8 @@
         this.settings = $.extend( {}, defaults, options );
         this._defaults = defaults;
         this._name = pluginName;
+        // initialize PRNG
+        this.reseed(this.settings.seed);
         this.init();
     }
 
@@ -68,7 +88,19 @@
             this.exportCanvas.height = this.displayHeight;
             this.exportContext = this.exportCanvas.getContext("2d");
         },
+        reseed: function(seed){
+            if (seed == null) {
+                seed = Math.floor(Math.random()*0xFFFFFFFF);
+            }
+            this.settings.seed = toSeed(seed);
+            this.prng = mulberry32(this.settings.seed);
+        },
+        rand: function(){
+            return this.prng ? this.prng() : Math.random();
+        },
         generate: function () {
+            // reinitialize RNG for deterministic generation
+            this.reseed(this.settings.seed);
             this.drawCount = 0;
             this.context.setTransform(1,0,0,1,0,0);
             this.context.clearRect(0,0,this.displayWidth,this.displayHeight);
@@ -129,7 +161,7 @@
             this.circles = [];
             
             for (i = 0; i < this.settings.numCircles; i++) {
-                maxR = this.settings.minMaxRad+Math.random()*(this.settings.maxMaxRad-this.settings.minMaxRad);
+                maxR = this.settings.minMaxRad+this.rand()*(this.settings.maxMaxRad-this.settings.minMaxRad);
                 minR = this.settings.minRadFactor*maxR;
                 
                 //define gradient
@@ -149,8 +181,9 @@
                     //fillColor: "rgba(0,0,0,1)",
                     param : 0,
                     changeSpeed : 1/250,
-                    phase : Math.random()*TWO_PI, //the phase to use for a single fractal curve.
-                    globalPhase: Math.random()*TWO_PI //the curve as a whole will rise and fall by a sinusoid.
+                    phase : this.rand()*TWO_PI, //the phase to use for a single fractal curve.
+                    globalPhase: this.rand()*TWO_PI, //the curve as a whole will rise and fall by a sinusoid.
+                    done: false
                     };
                 this.circles.push(newCircle);
                 newCircle.pointList1 = this.setLinePoints(this.settings.iterations);
@@ -164,6 +197,7 @@
             var point1,point2;
             var x0,y0;
             var cosParam;
+            var ts = this.settings.timeScale || 1;
             
             var xSqueeze = 0.75; //cheap 3D effect by shortening in x direction.
             
@@ -193,19 +227,28 @@
                     point2 = c.pointList2.first;
                     
                     //slowly rotate
-                    c.phase += 0.0002;
+                    c.phase += 0.0002*ts;
                     
                     theta = c.phase;
                     rad = c.minRad + (point1.y + cosParam*(point2.y-point1.y))*(c.maxRad - c.minRad);
                     
                     //move center
-                    c.centerX += 0.5;
-                    c.centerY += 0.04;
-                    yOffset = 40*Math.sin(c.globalPhase + this.drawCount/1000*TWO_PI);
+                    c.centerX += 0.5*ts;
+                    c.centerY += 0.04*ts;
+                    yOffset = 40*Math.sin(c.globalPhase + (this.drawCount/1000)*TWO_PI*ts);
                     //stop when off screen
                     if (c.centerX > this.displayWidth + this.settings.maxMaxRad) {
-                        clearInterval(timer);
-                        timer = null;
+                        c.done = true;
+                        // if all circles have exited, stop
+                        var allDone = true;
+                        for (var k = 0; k < this.circles.length; k++) { if (!this.circles[k].done) { allDone = false; break; } }
+                        if (allDone) {
+                            clearInterval(timer);
+                            timer = null;
+                            if (this.isRecording && typeof this.onRecordFinish === 'function') {
+                                this.onRecordFinish();
+                            }
+                        }
                     }           
                     
                     //we are drawing in new position by applying a transform. We are doing this so the gradient will move with the drawing.
@@ -254,7 +297,7 @@
                     dx = nextPoint.x - point.x;
                     newX = 0.5*(point.x + nextPoint.x);
                     newY = 0.5*(point.y + nextPoint.y);
-                    newY += dx*(Math.random()*2 - 1);
+                    newY += dx*(this.rand()*2 - 1);
                     
                     var newPoint = {x:newX, y:newY};
                     
@@ -340,6 +383,84 @@
             imageWindow.document.close();
             var exportImage = imageWindow.document.getElementById("exportImage");
             exportImage.src = dataURL;
+        }
+        ,
+        downloadVideo: function(width, height, fps){
+            var targetWidth = parseInt(width, 10);
+            var targetHeight = parseInt(height, 10);
+            var frameRate = parseInt(fps, 10) || 30;
+            if (!isFinite(targetWidth) || targetWidth <= 0) { targetWidth = this.displayWidth; }
+            if (!isFinite(targetHeight) || targetHeight <= 0) { targetHeight = this.displayHeight; }
+
+            // Prepare offscreen canvas for recording
+            var recordCanvas = document.createElement('canvas');
+            recordCanvas.width = targetWidth;
+            recordCanvas.height = targetHeight;
+            var recordCtx = recordCanvas.getContext('2d');
+
+            // Backup current drawing state
+            var bakDisplayCanvas = this.displayCanvas;
+            var bakContext = this.context;
+            var bakDisplayWidth = this.displayWidth;
+            var bakDisplayHeight = this.displayHeight;
+            var bakTimer = timer;
+
+            if (bakTimer) { clearInterval(bakTimer); timer = null; }
+
+            // Switch drawing to recording canvas
+            this.displayCanvas = $(recordCanvas);
+            this.context = recordCtx;
+            this.displayWidth = targetWidth;
+            this.displayHeight = targetHeight;
+
+            // Fix time base for smoother video: set speed based on fps
+            var prevSpeed = this.settings.speed;
+            this.settings.speed = Math.max(1, Math.round(1000/frameRate));
+
+            // Re-generate deterministically using current seed/params
+            this.generate();
+
+            // Start recording
+            var stream = recordCanvas.captureStream(frameRate);
+            var recordedChunks = [];
+            var recorder;
+            try {
+                recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
+            } catch (e) {
+                try { recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8' }); } catch (e2) {}
+            }
+            if (!recorder) {
+                // restore
+                this.displayCanvas = bakDisplayCanvas;
+                this.context = bakContext;
+                this.displayWidth = bakDisplayWidth;
+                this.displayHeight = bakDisplayHeight;
+                this.settings.speed = prevSpeed;
+                return;
+            }
+
+            recorder.ondataavailable = function(e){ if (e.data && e.data.size) { recordedChunks.push(e.data); } };
+            var self = this;
+            this.isRecording = true;
+            this.onRecordFinish = function(){
+                if (self.isRecording) { self.isRecording = false; recorder.stop(); }
+            };
+            recorder.onstop = function(){
+                var blob = new Blob(recordedChunks, { type: 'video/webm' });
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url; a.download = 'smoke.webm';
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                // restore original drawing state
+                self.displayCanvas = bakDisplayCanvas;
+                self.context = bakContext;
+                self.displayWidth = bakDisplayWidth;
+                self.displayHeight = bakDisplayHeight;
+                self.settings.speed = prevSpeed;
+            };
+            recorder.start();
         }
     };
 

@@ -51,6 +51,13 @@
 				<div class="numCircles-slider"></div>
 				<input type="hidden" id="numCircles" name="numCircles" value="1" class=""></input>
 			</div>
+            <div class="input-group">
+                <label for="seed">Seed:</label>
+                <div style="display:flex; gap:6px; align-items:center;">
+                    <input type="text" id="seed" name="seed" value="" placeholder="auto"></input>
+                    <div class="btn btn-grey btn-seed-refresh" style="width:auto; padding:4px 8px;">↻</div>
+                </div>
+            </div>
             <h2>Background style</h2>
 			<div class="input-group">
 				<label for="bgColorOuter">Outer color:</label>
@@ -68,12 +75,17 @@
 			<label for="downloadHeight">Height (px):</label>
 			<input type="text" id="downloadHeight" name="downloadHeight" value="1440"></input>
 			</div>
+            <div class="input-group">
+                <label for="playbackSpeed">Animation speed (1.0 = normal):</label>
+                <input type="text" id="playbackSpeed" name="playbackSpeed" value="1.0"></input>
+            </div>
 		</form>
 	</div>
 	<div style="clear:both"></div>
 	<div class="buttons-wrap">
 		<div class="btn btn-grey btn-resize-canvas">Resize Canvas</div>
 		<div class="btn btn-grey btn-generate">Generate</div>
+        <div class="btn btn-grey btn-download-video">Download as Video</div>
 	</div>
 </div>
 
